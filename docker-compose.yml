@@ -1,0 +1,27 @@
+services:
+  pyspark_notebook:
+    image: jupyter/pyspark-notebook:spark-3.4.1
+    container_name: ambiente_pyspark # Nome único para o container
+    ports:
+      - "8888:8888"
+    volumes:
+      - .:/home/jovyan/work  # Monta uma pasta local como diretório de trabalho
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+    user: root
+    working_dir: /home/jovyan/work  # Define o diretório de trabalho padrão no container
+
+  postgres_db:
+    image: postgres:13  # Use a versão desejada do PostgreSQL
+    ports:
+      - "5432:5432"  # Porta padrão do PostgreSQL
+    environment: # Configura as variáveis de ambiente corretamente
+      POSTGRES_USER: user
+      POSTGRES_DB: my_db
+      POSTGRES_PASSWORD: 123456
+      
+    volumes:
+      - pgdata:/var/lib/postgresql/data  # Volume para persistência dos dados
+
+volumes:
+  pgdata:
