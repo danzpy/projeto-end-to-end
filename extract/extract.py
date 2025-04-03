@@ -15,6 +15,7 @@ def configuracao_driver() -> Options:
         Options: Configurações do ChromeDriver.
     """
     chrome_options = Options()
+    chrome_options.add_argument("--log-level=3")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--disable-3d-apis")
     chrome_options.add_argument("--no-sandbox")
@@ -49,7 +50,7 @@ def inicializando_chrome(settings: Options) -> WebDriver:
         WebDriver: Instância do WebDriver do Chrome com a página carregada.
     """
 
-    url = 'https://www.hostelworld.com/hostels/south-america/brazil/sao-paulo/'
+    url = 'https://www.hostelworld.com/hostels/'
 
     driver = webdriver.Chrome(options=settings)
     driver.get(url)
@@ -60,13 +61,26 @@ settings = configuracao_driver()
 driver = inicializando_chrome(settings)
 driver_set = chrome_com_espera(driver, segundos=10)
 
-containers = driver_set.until(
+
+paises = driver_set.until(
     EC.presence_of_all_elements_located((
         By.XPATH,
-        ".//a[contains(@class, 'property-card-container') and contains(@class, 'property-listing-card')]"
+        "//li[@data-v-b9feb344]"
     ))
 )
 
-for info in containers:
-    elemento = info.find_element(By.XPATH, ".//div[contains(@class, 'property-name')]")
-    print(elemento.text)
+for pais in paises:
+    if pais.is_displayed():
+        print(pais.text)
+
+
+# containers = driver_set.until(
+#     EC.presence_of_all_elements_located((
+#         By.XPATH,
+#         ".//a[contains(@class, 'property-card-container') and contains(@class, 'property-listing-card')]"
+#     ))
+# )
+
+# for info in containers:
+#     elemento = info.find_element(By.XPATH, ".//div[contains(@class, 'property-name')]")
+#     print(elemento.text)
