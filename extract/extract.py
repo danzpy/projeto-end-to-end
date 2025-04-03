@@ -4,83 +4,198 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+import pandas as pd
+import os
+from loguru import logger
+from time import sleep
 
-
-def configuracao_driver() -> Options:
+class CustomOptions:
     """
-    Configura as opções do driver Chrome para execução em ambiente headless e com algumas opções de
-    desempenho desabilitadas, como GPU e 3D APIs.
+    Classe responsável por aplicar as configurações do navegador Chrome para o WebDriver.
 
-    Returns:
-        Options: Configurações do ChromeDriver.
-    """
-    chrome_options = Options()
-    chrome_options.add_argument("--log-level=3")
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--disable-3d-apis")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--allow-insecure-localhost")
-    chrome_options.add_argument("--headless")
-
-    return chrome_options
-
-
-def chrome_com_espera(driver: WebDriver, segundos: int) -> WebDriverWait:
-    """
-    Cria uma instância do WebDriverWait com base no driver fornecido e um tempo de espera.
-
-    Args:
-        driver (WebDriver): Instância do driver do Selenium.
-        segundos (int): Tempo em segundos para o qual o WebDriverWait aguardará por um elemento.
-
-    Returns:
-        WebDriverWait: Instância do WebDriverWait configurada.
-    """
-    return WebDriverWait(driver, segundos)
-
-
-def inicializando_chrome(settings: Options) -> WebDriver:
-    """
-    Inicializa o ChromeDriver com as configurações fornecidas e acessa a URL especificada.
-
-    Args:
-        settings (Options): Configurações personalizadas do ChromeDriver.
-
-    Returns:
-        WebDriver: Instância do WebDriver do Chrome com a página carregada.
+    Atributos:
+    ----------
+    chrome_options : Options
+        Instância de opções do Chrome configurada com diversos argumentos.
     """
 
-    url = 'https://www.hostelworld.com/hostels/'
+    def __init__(self) -> None:
+        self.chrome_options = Options()
+        self.chrome_options.add_argument("--disable-gpu")
+        self.chrome_options.add_argument("--disable-3d-apis")
+        self.chrome_options.add_argument("--allow-insecure-localhost")
+        self.chrome_options.add_argument("--log-level=3")
+        self.chrome_options.add_argument(
+            "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.6167.140 Safari/537.36"
+        )
+        self.chrome_options.add_argument("--headless")
 
-    driver = webdriver.Chrome(options=settings)
-    driver.get(url)
+    def espera(self, driver) -> WebDriverWait:
+        """
+        Configura o tempo máximo de espera para que elementos estejam presentes na url especificada antes de interagir com eles.
 
-    return driver
+        Parâmetros:
+        -----------
+        driver : WebDriver
+            Instância do WebDriver que será usada para configurar a espera.
 
-settings = configuracao_driver()
-driver = inicializando_chrome(settings)
-driver_set = chrome_com_espera(driver, segundos=10)
+        Retorna:
+        --------
+        WebDriverWait
+            Instância configurada de WebDriverWait.
+        """
+        self.tempo = 40
+        return WebDriverWait(driver, self.tempo)
+    
 
+class Navegador:
+    """
+    Classe responsável por gerenciar o navegador e realizar o processo de scraping.
 
-paises = driver_set.until(
-    EC.presence_of_all_elements_located((
-        By.XPATH,
-        "//li[@data-v-b9feb344]"
-    ))
-)
+    -> Depende da classe "CustomOptions".
 
-for pais in paises:
-    if pais.is_displayed():
-        print(pais.text)
+    Atributos:
+    ----------
+    driver : WebDriver
+        Instância do WebDriver configurada com opções personalizadas.
+    options : CustomOptions
+        Instância da classe CustomOptions contendo as opções de configuração do navegador.
+    pagina : int
+        Número da página atual que está sendo processada.
+    itens_por_pagina : int
+        Número de itens exibidos por página no site.
+    base_url : str
+        URL base do site a ser raspado.
+    dados_coletados : dict
+        Dicionário que armazena os dados coletados como título, preço e link dos produtos.
+    """
 
+    def __init__(self, options: CustomOptions) -> None:
+        self.driver = webdriver.Chrome(options=options.chrome_options)
+        self.options = options
+        self.pagina = 1
+        self.base_url = 'https://casa.sapo.pt/comprar-apartamentos/porto/'
+        self.dados_coletados = {"link": []}
 
-# containers = driver_set.until(
-#     EC.presence_of_all_elements_located((
-#         By.XPATH,
-#         ".//a[contains(@class, 'property-card-container') and contains(@class, 'property-listing-card')]"
-#     ))
-# )
+    def acessar_url(self, url=None) -> None:
+        """
+        Acessa a URL especificada. Se nenhuma URL for passada, acessa a URL padrão configurada com base na página atual.
 
-# for info in containers:
-#     elemento = info.find_element(By.XPATH, ".//div[contains(@class, 'property-name')]")
-#     print(elemento.text)
+        Parâmetros:
+        -----------
+        url : str, opcional
+            URL que será acessada. Se não especificada, será gerada a URL padrão baseada na página atual.
+
+        Retorna:
+        --------
+        None
+        """
+        if url is None:
+            url = f"{self.base_url}?pn={self.pagina}"
+        self.driver.get(url)
+
+    def coletar_links(self) -> None:
+        """
+        Coleta todos os cartões de produtos presentes na página e extrai suas informações.
+
+        Retorna:
+        --------
+        None
+        """
+        espera = self.options.espera(self.driver)
+        aptos = espera.until(
+            EC.presence_of_all_elements_located((
+                By.XPATH,
+                "//div[contains(@class, 'property-info-content')]"
+            ))
+        )
+
+        for ap in aptos:
+            if ap.is_displayed():
+                link_element = ap.find_element(By.XPATH, ".//a[contains(@class, 'property-info')]")
+                href = link_element.get_attribute("href")
+                self.dados_coletados['link'].append(href)
+
+    def valida_ultima_pagina(self) -> bool:
+        """
+        Verifica se a última página de resultados foi alcançada.
+
+        Retorna:
+        --------
+        bool
+            True se a última página foi alcançada, caso contrário False.
+        """
+        espera = self.options.espera(self.driver)
+        try:
+            ultima_pagina = espera.until(
+                EC.presence_of_element_located((
+                    By.XPATH,
+                    "//span[contains(@class, 'disabled')]"
+                ))
+            )
+
+            if ultima_pagina and self.pagina != 1:
+                logger.info(
+                    f"Cheguei na última página: {self.pagina}.\nDados extraídos com sucesso."
+                )
+                return True
+        except:
+            pass
+
+    def proxima_pagina(self) -> None:
+        """
+        Avança para a próxima página de resultados e acessa a URL correspondente.
+
+        Retorna:
+        --------
+        None
+        """
+        self.pagina += 1
+        proxima_pagina = f"{self.base_url}?pn={self.pagina}"
+        self.acessar_url(proxima_pagina)
+
+    def scraping(self) -> None:
+        """
+        Executa o processo completo de scraping, passando por todas as páginas disponíveis até a última.
+
+        Retorna:
+        --------
+        None
+        """
+        self.acessar_url()
+        while True:
+            self.coletar_links()
+
+            logger.info(f"Coleta da página {self.pagina} realizada com sucesso..")
+            sleep(2)
+
+            if self.valida_ultima_pagina():
+                break
+            else:
+                self.proxima_pagina()
+
+    def armazena_dados(self) -> None:
+        """
+        Armazena os dados coletados durante o processo de scraping em um arquivo CSV.
+
+        Retorna:
+        --------
+        None
+        """
+        dados = pd.DataFrame(self.dados_coletados)
+
+        data_directory = "data"
+
+        dados.to_csv(
+            os.path.join(data_directory, "links-aptos.csv"),
+            sep=";",
+            encoding="utf-8",
+            header=True,
+            index=False,
+        )
+
+options = CustomOptions()
+chrome = Navegador(options)
+
+chrome.scraping()
+chrome.armazena_dados()
