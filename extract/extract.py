@@ -68,9 +68,9 @@ class Navegador:
     """
 
     def __init__(self, options: CustomOptions) -> None:
-        self.driver = webdriver.Chrome(options=options.chrome_options)
+        self.__driver = webdriver.Chrome(options=options.chrome_options)
         self.__options = options
-        self.pagina = 1
+        self.__pagina = 1
         self.base_url = 'https://casa.sapo.pt/comprar-apartamentos/porto/'
         self.__dados_coletados = {"link": []}
 
@@ -88,8 +88,8 @@ class Navegador:
         None
         """
         if url is None:
-            url = f"{self.base_url}?pn={self.pagina}"
-        self.driver.get(url)
+            url = f"{self.base_url}?pn={self.__pagina}"
+        self.__driver.get(url)
 
     def __coletar_links(self) -> None:
         """
@@ -99,7 +99,7 @@ class Navegador:
         --------
         None
         """
-        espera = self.__options.espera(self.driver)
+        espera = self.__options.espera(self.__driver)
         aptos = espera.until(
             EC.presence_of_all_elements_located((
                 By.XPATH,
@@ -122,7 +122,7 @@ class Navegador:
         bool
             True se a última página foi alcançada, caso contrário False.
         """
-        espera = self.__options.espera(self.driver)
+        espera = self.__options.espera(self.__driver)
         try:
             ultima_pagina = espera.until(
                 EC.presence_of_element_located((
@@ -133,7 +133,7 @@ class Navegador:
 
             if ultima_pagina: #and self.pagina != 1:
                 logger.info(
-                    f"Cheguei na última página: {self.pagina}.\nDados extraídos com sucesso."
+                    f"Cheguei na última página: {self.__pagina}.\nDados extraídos com sucesso."
                 )
                 return True
         except:
@@ -148,7 +148,7 @@ class Navegador:
         None
         """
         self.pagina += 1
-        proxima_pagina = f"{self.base_url}?pn={self.pagina}"
+        proxima_pagina = f"{self.base_url}?pn={self.__pagina}"
         self.__acessar_url(proxima_pagina)
 
     def scraping_links(self) -> None:
@@ -163,7 +163,7 @@ class Navegador:
         while True:
             self.__coletar_links()
 
-            logger.info(f"Coleta da página {self.pagina} realizada com sucesso..")
+            logger.info(f"Coleta da página {self.__pagina} realizada com sucesso..")
             sleep(2)
 
             if self.__valida_ultima_pagina():
