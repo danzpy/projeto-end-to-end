@@ -4,8 +4,6 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-import pandas as pd
-import os
 from loguru import logger
 from time import sleep
 
@@ -46,7 +44,6 @@ class CustomOptions:
         """
         self.tempo = 40
         return WebDriverWait(driver, self.tempo)
-    
 
 class Navegador:
     """
@@ -72,12 +69,12 @@ class Navegador:
 
     def __init__(self, options: CustomOptions) -> None:
         self.driver = webdriver.Chrome(options=options.chrome_options)
-        self.options = options
+        self.__options = options
         self.pagina = 1
         self.base_url = 'https://casa.sapo.pt/comprar-apartamentos/porto/'
-        self.dados_coletados = {"link": []}
+        self.__dados_coletados = {"link": []}
 
-    def acessar_url(self, url=None) -> None:
+    def __acessar_url(self, url=None) -> None:
         """
         Acessa a URL especificada. Se nenhuma URL for passada, acessa a URL padrão configurada com base na página atual.
 
@@ -94,7 +91,7 @@ class Navegador:
             url = f"{self.base_url}?pn={self.pagina}"
         self.driver.get(url)
 
-    def coletar_links(self) -> None:
+    def __coletar_links(self) -> None:
         """
         Coleta todos os cartões de produtos presentes na página e extrai suas informações.
 
@@ -102,7 +99,7 @@ class Navegador:
         --------
         None
         """
-        espera = self.options.espera(self.driver)
+        espera = self.__options.espera(self.driver)
         aptos = espera.until(
             EC.presence_of_all_elements_located((
                 By.XPATH,
@@ -114,9 +111,9 @@ class Navegador:
             if ap.is_displayed():
                 link_element = ap.find_element(By.XPATH, ".//a[contains(@class, 'property-info')]")
                 href = link_element.get_attribute("href")
-                self.dados_coletados['link'].append(href)
+                self.__dados_coletados['link'].append(href)
 
-    def valida_ultima_pagina(self) -> bool:
+    def __valida_ultima_pagina(self) -> bool:
         """
         Verifica se a última página de resultados foi alcançada.
 
@@ -125,7 +122,7 @@ class Navegador:
         bool
             True se a última página foi alcançada, caso contrário False.
         """
-        espera = self.options.espera(self.driver)
+        espera = self.__options.espera(self.driver)
         try:
             ultima_pagina = espera.until(
                 EC.presence_of_element_located((
@@ -134,7 +131,7 @@ class Navegador:
                 ))
             )
 
-            if ultima_pagina and self.pagina != 1:
+            if ultima_pagina: #and self.pagina != 1:
                 logger.info(
                     f"Cheguei na última página: {self.pagina}.\nDados extraídos com sucesso."
                 )
@@ -142,7 +139,7 @@ class Navegador:
         except:
             pass
 
-    def proxima_pagina(self) -> None:
+    def __proxima_pagina(self) -> None:
         """
         Avança para a próxima página de resultados e acessa a URL correspondente.
 
@@ -152,9 +149,9 @@ class Navegador:
         """
         self.pagina += 1
         proxima_pagina = f"{self.base_url}?pn={self.pagina}"
-        self.acessar_url(proxima_pagina)
+        self.__acessar_url(proxima_pagina)
 
-    def scraping(self) -> None:
+    def scraping_links(self) -> None:
         """
         Executa o processo completo de scraping, passando por todas as páginas disponíveis até a última.
 
@@ -162,40 +159,17 @@ class Navegador:
         --------
         None
         """
-        self.acessar_url()
+        self.__acessar_url()
         while True:
-            self.coletar_links()
+            self.__coletar_links()
 
             logger.info(f"Coleta da página {self.pagina} realizada com sucesso..")
             sleep(2)
 
-            if self.valida_ultima_pagina():
+            if self.__valida_ultima_pagina():
                 break
             else:
-                self.proxima_pagina()
+                self.__proxima_pagina()
 
-    def armazena_dados(self) -> None:
-        """
-        Armazena os dados coletados durante o processo de scraping em um arquivo CSV.
-
-        Retorna:
-        --------
-        None
-        """
-        dados = pd.DataFrame(self.dados_coletados)
-
-        data_directory = "data"
-
-        dados.to_csv(
-            os.path.join(data_directory, "links-aptos.csv"),
-            sep=";",
-            encoding="utf-8",
-            header=True,
-            index=False,
-        )
-
-options = CustomOptions()
-chrome = Navegador(options)
-
-chrome.scraping()
-chrome.armazena_dados()
+    def get_links(self) -> list[str]:
+        return self.__dados_coletados["link"]
