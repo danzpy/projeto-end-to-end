@@ -1,11 +1,12 @@
-from extract.extract import CustomOptions, Navegador
-from load.load import ArmazenarDados
+from extract.extract import CustomOptions, Scraper, DriverManager
+from load.load import Armazenamento
 
 
 options = CustomOptions()
-chrome = Navegador(options)
+driver = DriverManager(options)
+chrome = Scraper(driver)
 
-armazenador = ArmazenarDados()
+carregar = Armazenamento('data')
 
 chrome.scraping_links()
-armazenador.gerar_csv_links(chrome.get_links())
+carregar.gerar_csv_links(chrome.get_links())

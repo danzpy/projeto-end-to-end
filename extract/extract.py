@@ -44,12 +44,47 @@ class CustomOptions:
         """
         self.tempo = 40
         return WebDriverWait(driver, self.tempo)
+    
+class DriverManager:
+    """
+    Classe responsável por inicializar e fornecer acesso ao WebDriver e suas configurações.
 
-class Navegador:
+    Atributos:
+    ----------
+    __driver : WebDriver
+        Instância do navegador configurada com as opções fornecidas.
+    __options : CustomOptions
+        Instância de opções personalizadas para o navegador.
+    """
+    def __init__(self, options:CustomOptions) -> None:
+        self.__driver = webdriver.Chrome(options=options.chrome_options)
+        self.__options = options
+
+    def get_driver(self) -> None:
+        """
+        Retorna a instância do WebDriver.
+
+        Retorna:
+        --------
+        WebDriver
+        """
+        return self.__driver
+    
+    def get_options(self) -> None:
+        """
+        Retorna a instância de opções do navegador.
+
+        Retorna:
+        --------
+        CustomOptions
+        """
+        return self.__options
+
+class Scraper:
     """
     Classe responsável por gerenciar o navegador e realizar o processo de scraping.
 
-    -> Depende da classe "CustomOptions".
+    Depende de instâncias configuradas de WebDriver e CustomOptions, fornecidas por DriverManager.
 
     Atributos:
     ----------
@@ -59,17 +94,15 @@ class Navegador:
         Instância da classe CustomOptions contendo as opções de configuração do navegador.
     pagina : int
         Número da página atual que está sendo processada.
-    itens_por_pagina : int
-        Número de itens exibidos por página no site.
     base_url : str
         URL base do site a ser raspado.
     dados_coletados : dict
-        Dicionário que armazena os dados coletados como título, preço e link dos produtos.
+        Dicionário que armazena os dados coletados como links dos produtos.
     """
-
-    def __init__(self, options: CustomOptions) -> None:
-        self.__driver = webdriver.Chrome(options=options.chrome_options)
-        self.__options = options
+    
+    def __init__(self, driver: DriverManager) -> None:
+        self.__driver = driver.get_driver()
+        self.__options = driver.get_options()
         self.__pagina = 1
         self.base_url = 'https://casa.sapo.pt/comprar-apartamentos/porto/'
         self.__dados_coletados = {"link": []}
@@ -87,6 +120,7 @@ class Navegador:
         --------
         None
         """
+
         if url is None:
             url = f"{self.base_url}?pn={self.__pagina}"
         self.__driver.get(url)
@@ -131,7 +165,7 @@ class Navegador:
                 ))
             )
 
-            if ultima_pagina: #and self.pagina != 1:
+            if ultima_pagina: #and self.pagina != 1  <- Descomentar quando for rodar a coleta:
                 logger.info(
                     f"Cheguei na última página: {self.__pagina}.\nDados extraídos com sucesso."
                 )
@@ -147,7 +181,7 @@ class Navegador:
         --------
         None
         """
-        self.pagina += 1
+        self.__pagina += 1
         proxima_pagina = f"{self.base_url}?pn={self.__pagina}"
         self.__acessar_url(proxima_pagina)
 
@@ -172,4 +206,12 @@ class Navegador:
                 self.__proxima_pagina()
 
     def get_links(self) -> list[str]:
+        """
+        Retorna a lista de links coletados.
+
+        Retorna:
+        --------
+        list[str]
+        """
+
         return self.__dados_coletados["link"]
