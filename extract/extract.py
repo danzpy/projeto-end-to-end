@@ -4,6 +4,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+import pandas as pd
 from loguru import logger
 from time import sleep
 
@@ -28,7 +29,7 @@ class CustomOptions:
         )
         self.chrome_options.add_argument("--headless")
 
-    def espera(self, driver) -> WebDriverWait:
+    def espera(self, driver: WebDriver) -> WebDriverWait:
         """
         Configura o tempo máximo de espera para que elementos estejam presentes na url especificada antes de interagir com eles.
 
@@ -80,7 +81,7 @@ class DriverManager:
         """
         return self.__options
 
-class Scraper:
+class ScraperLinks:
     """
     Classe responsável por gerenciar o navegador e realizar o processo de scraping.
 
@@ -215,3 +216,116 @@ class Scraper:
         """
 
         return self.__dados_coletados["link"]
+
+
+class ManipuladorArquivos:
+
+    def get_links_from_csv(self, diretorio: str, arquivo: str) -> pd.DataFrame:
+        
+        links = pd.read_csv(f'{diretorio}/{arquivo}')
+
+        return links
+
+class ScrapperInfo:
+
+    def __init__(self, driver: DriverManager) -> None:
+        self.__driver = driver.get_driver()
+        self.__options = driver.get_options()
+        self.__links = ManipuladorArquivos().get_links_from_csv(diretorio='data', arquivo='links-aptos_old.csv')
+        self.__dados_coletados = {"descricao": [], "dados_imovel": [], "coordenadas": [], "link": [], "preco": []}
+
+    def __coleta_descricao(self) -> None:
+        espera = self.__options.espera(self.__driver)
+        elem = espera.until(
+            EC.presence_of_element_located((
+                By.XPATH,
+                "//div[contains(@class, 'detail-section') and contains(@class, 'detail-title')]"
+            ))
+        )
+
+        descricao = elem.find_element(By.TAG_NAME, "h1")
+
+        self.__dados_coletados['descricao'].append(descricao.text)
+
+    def __coleta_preco(self) -> None:
+        espera = self.__options.espera(self.__driver)
+        elem = espera.until(
+            EC.presence_of_element_located((
+                By.XPATH,
+                "//div[contains(@class, 'detail-section') and contains(@class, 'detail-title')]"
+            ))
+        )
+
+        preco = elem.find_element(By.XPATH, "//div[contains(@class, 'detail-title-price-value')]")
+
+        self.__dados_coletados['preco'].append(preco.text)
+
+    def __coleta_dados_imovel(self) -> None:
+
+        espera = self.__options.espera(self.__driver)
+        main_elem = espera.until(
+            EC.presence_of_element_located((
+                By.XPATH,
+                "//div[contains(@class, 'detail-main-features-list')]"
+            ))
+        )
+
+        elementos = main_elem.find_elements(
+            By.XPATH, ".//div[contains(@class, 'detail-main-features-item')]"
+        )
+
+        dict = {}
+        for elem in elementos:
+            titulo_elem = elem.find_elements(
+                By.XPATH, ".//div[contains(@class, 'detail-main-features-item-title')]"
+            )
+            valor_elem = elem.find_elements(
+                By.XPATH, ".//div[contains(@class, 'detail-main-features-item-value')]"
+            )
+
+            item = titulo_elem[0].text.strip() if titulo_elem else None
+            valor = valor_elem[0].text.strip() if valor_elem else None
+
+            if item and valor:
+                dict[item] = valor
+
+        self.__dados_coletados['dados_imovel'].append(dict)
+
+    def __coleta_coords(self) -> None:
+        espera = self.__options.espera(self.__driver)
+        map = espera.until(
+        EC.presence_of_element_located((
+            By.XPATH,
+            "//div[contains(@id, 'objMap')]"
+            ))
+        )
+
+        lat = map.get_attribute('data-latitude')
+        long = map.get_attribute('data-longitude')
+
+        self.__dados_coletados['coordenadas'].append({'lat': lat, 'long': long})
+
+    def __coleta_link(self, link: str) -> None:
+        self.__dados_coletados['link'].append(link)
+
+    def percorre_links(self) -> None: # após testes, encapsular método
+        for i, link in enumerate(self.__links['link'].head()):
+            self.__driver.get(link)
+            self.__coleta_link(link)
+            self.__coleta_descricao()
+            self.__coleta_preco()
+            self.__coleta_dados_imovel()
+            self.__coleta_coords()
+            logger.info(f'Coleta do link "{i+1}" realizada com sucesso.')
+
+    def get_dados(self) -> list[str]:
+        """
+        Retorna os dados coletados durante o processo de Scrapping
+
+        Retorna:
+        --------
+        list[str]
+        """
+
+        return self.__dados_coletados
+

@@ -75,3 +75,11 @@ class Armazenamento(FormatoArmazenamento):
         df = pd.DataFrame(dados, columns=['links'])
         self.checa_diretorio()
         self.armazenar_csv(df=df, diretorio=self.diretorio, nome_arquivo="links-aptos.csv")
+
+
+
+    def gerar_csv_dados(self, dados: list[any]) -> None:
+        
+        df = pd.DataFrame(dados, columns=['descricao', 'dados_imovel', 'coordenadas', 'link', 'preco'])
+        self.checa_diretorio()
+        self.armazenar_csv(df=df, diretorio=self.diretorio, nome_arquivo="dados-aptos.csv")
