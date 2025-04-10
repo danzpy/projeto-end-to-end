@@ -4,6 +4,7 @@ from load.load import Armazenamento
 carregar = Armazenamento(diretorio='data')
 options = CustomOptions()
 driver = DriverManager(options)
+
 links = ScraperLinks(driver)
 dados = ScrapperInfo(driver)
 
