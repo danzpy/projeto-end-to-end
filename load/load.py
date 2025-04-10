@@ -80,6 +80,6 @@ class Armazenamento(FormatoArmazenamento):
 
     def gerar_csv_dados(self, dados: list[any]) -> None:
         
-        df = pd.DataFrame(dados, columns=['descricao', 'dados_imovel', 'coordenadas', 'link', 'preco'])
+        df = pd.DataFrame(dados, columns=['descricao', 'dados_imovel', 'caracteristicas', 'coordenadas', 'link', 'preco']) #Ajustar isso aqui para coletar as colunas automaticamente. Sempre que adiciona uma variável, precisa incluir manualmente
         self.checa_diretorio()
         self.armazenar_csv(df=df, diretorio=self.diretorio, nome_arquivo="dados-aptos.csv")

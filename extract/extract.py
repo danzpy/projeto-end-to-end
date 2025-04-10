@@ -232,7 +232,7 @@ class ScrapperInfo:
         self.__driver = driver.get_driver()
         self.__options = driver.get_options()
         self.__links = ManipuladorArquivos().get_links_from_csv(diretorio='data', arquivo='links-aptos_old.csv')
-        self.__dados_coletados = {"descricao": [], "dados_imovel": [], "coordenadas": [], "link": [], "preco": []}
+        self.__dados_coletados = {"descricao": [], "dados_imovel": [], "caracteristicas": [], "coordenadas": [], "link": [], "preco": []}
 
     def __coleta_descricao(self) -> None:
         espera = self.__options.espera(self.__driver)
@@ -291,6 +291,51 @@ class ScrapperInfo:
 
         self.__dados_coletados['dados_imovel'].append(dict)
 
+    def __percorre_e_coleta_caracteristicas(self) -> None:
+
+        espera = self.__options.espera(self.__driver)
+        menu = espera.until(EC.presence_of_element_located((By.XPATH, ".//div[contains(@class, 'detail-features-menu-content')]")))
+        abas = menu.find_elements(By.TAG_NAME, "span")
+
+        dados_coletados = {}
+
+        for aba in abas:
+            aba_name = self.__trata_nome_aba(aba.text)
+            #print(aba_name)
+            self.__driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", aba)
+            sleep(0.5)
+            self.__driver.execute_script("arguments[0].click();", aba)
+            coletados = self.__coleta_caracteristicas()
+
+            dados_coletados[aba_name] = coletados
+        
+        self.__dados_coletados['caracteristicas'].append(dados_coletados)
+
+    def __trata_nome_aba(self, nome: str) -> str:
+        nome_tratado = nome.lower().replace(' ', '-').translate(str.maketrans('áãâàéêíóõôúç', 'aaaeeiiooouc'))
+        return nome_tratado
+
+    def __coleta_caracteristicas(self) -> None:
+
+        espera = self.__options.espera(self.__driver)
+
+        main_elem = espera.until(
+            EC.presence_of_element_located((
+                By.XPATH,
+                "//div[contains(@class, 'detail-section') and contains(@class, 'detail-features')]"
+            ))
+        )
+
+        menu_items = main_elem.find_element(By.XPATH, ".//div[contains(@class, 'detail-features-items')]")
+        items = menu_items.find_elements(By.XPATH, ".//div[contains(@class, 'detail-features-item')]")
+
+        items_coletados = []
+
+        for item in items:
+            items_coletados.append(item.text)
+
+        return items_coletados
+
     def __coleta_coords(self) -> None:
         espera = self.__options.espera(self.__driver)
         map = espera.until(
@@ -309,13 +354,14 @@ class ScrapperInfo:
         self.__dados_coletados['link'].append(link)
 
     def percorre_links(self) -> None: # após testes, encapsular método
-        for i, link in enumerate(self.__links['link'].head()):
+        for i, link in enumerate(self.__links['link'].head(10)):
             self.__driver.get(link)
             self.__coleta_link(link)
             self.__coleta_descricao()
             self.__coleta_preco()
             self.__coleta_dados_imovel()
             self.__coleta_coords()
+            self.__percorre_e_coleta_caracteristicas()
             logger.info(f'Coleta do link "{i+1}" realizada com sucesso.')
 
     def get_dados(self) -> list[str]:

@@ -25,7 +25,7 @@ elem_carac = wait.until(
 )
 
 # Coleta os botões (abas) do menu lateral
-menu = elem_carac.find_element(By.XPATH, ".//div[contains(@class, 'detail-features-menu-content')]")
+menu = wait.until(EC.presence_of_element_located((By.XPATH, ".//div[contains(@class, 'detail-features-menu-content')]")))
 botoes = menu.find_elements(By.TAG_NAME, "span")
 
 # Loop por cada aba
