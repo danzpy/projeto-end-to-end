@@ -8,9 +8,8 @@ driver = DriverManager(options)
 links = ScraperLinks(driver)
 dados = ScrapperInfo(driver)
 
-
 #links.scraping_links()
-#carregar.gerar_csv_links(chrome.get_links())
+#carregar.gerar_csv_links(links.get_links())
 
-dados.percorre_links()
-carregar.gerar_csv_dados(dados.get_dados())
+#dados.percorre_links()
+#carregar.gerar_csv_dados(dados.get_dados())

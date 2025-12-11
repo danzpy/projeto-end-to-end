@@ -73,6 +73,8 @@ class Armazenamento(FormatoArmazenamento):
             Lista de links coletados a serem armazenados.
         """
         df = pd.DataFrame(dados, columns=['links'])
+        df = df.drop_duplicates(subset=["links"])
+
         self.checa_diretorio()
         self.armazenar_csv(df=df, diretorio=self.diretorio, nome_arquivo="links-aptos.csv")
 
@@ -80,6 +82,8 @@ class Armazenamento(FormatoArmazenamento):
 
     def gerar_csv_dados(self, dados: list[any]) -> None:
         
-        df = pd.DataFrame(dados, columns=['descricao', 'dados_imovel', 'caracteristicas', 'coordenadas', 'link', 'preco']) #Ajustar isso aqui para coletar as colunas automaticamente. Sempre que adiciona uma variável, precisa incluir manualmente
+        df = pd.DataFrame(dados) #columns=['descricao', 'dados_imovel', 'caracteristicas', 'coordenadas', 'link', 'preco'] #Ajustar isso aqui para coletar as colunas automaticamente. Sempre que adiciona uma variável, precisa incluir manualmente
+        df = df.drop_duplicates(subset=["link"])
+        
         self.checa_diretorio()
         self.armazenar_csv(df=df, diretorio=self.diretorio, nome_arquivo="dados-aptos.csv")

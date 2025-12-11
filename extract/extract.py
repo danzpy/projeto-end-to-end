@@ -43,7 +43,7 @@ class CustomOptions:
         WebDriverWait
             Instância configurada de WebDriverWait.
         """
-        self.tempo = 40
+        self.tempo = 10
         return WebDriverWait(driver, self.tempo)
     
 class DriverManager:
@@ -162,13 +162,13 @@ class ScraperLinks:
             ultima_pagina = espera.until(
                 EC.presence_of_element_located((
                     By.XPATH,
-                    "//span[contains(@class, 'disabled')]"
+                    "//span[contains(@class, 'disabled') and contains(., 'Seguinte')]"
                 ))
             )
 
-            if ultima_pagina: #and self.pagina != 1  <- Descomentar quando for rodar a coleta:
+            if ultima_pagina:
                 logger.info(
-                    f"Cheguei na última página: {self.__pagina}.\nDados extraídos com sucesso."
+                    f"Ultima página: {self.__pagina}.\nDados extraídos com sucesso."
                 )
                 return True
         except:
@@ -231,84 +231,80 @@ class ScrapperInfo:
     def __init__(self, driver: DriverManager) -> None:
         self.__driver = driver.get_driver()
         self.__options = driver.get_options()
-        self.__links = ManipuladorArquivos().get_links_from_csv(diretorio='data', arquivo='links-aptos_old.csv')
+        self.__links = ManipuladorArquivos().get_links_from_csv(diretorio='data', arquivo='links-aptos.csv') # Ajustar isso. Preciso chamar o método "percorre_links()" com o nome do arquivo como argumento.
         self.__dados_coletados = {"descricao": [], "dados_imovel": [], "caracteristicas": [], "coordenadas": [], "link": [], "preco": []}
 
     def __coleta_descricao(self) -> None:
-        espera = self.__options.espera(self.__driver)
-        elem = espera.until(
-            EC.presence_of_element_located((
-                By.XPATH,
-                "//div[contains(@class, 'detail-section') and contains(@class, 'detail-title')]"
-            ))
-        )
+        try:
+            espera = self.__options.espera(self.__driver)
+            elem = espera.until(
+                EC.presence_of_element_located((
+                    By.XPATH,
+                    "//div[contains(@class, 'detail-section') and contains(@class, 'detail-title')]"
+                ))
+            )
+            descricao = elem.find_element(By.TAG_NAME, "h1").text
+        except Exception:
+            descricao = None
 
-        descricao = elem.find_element(By.TAG_NAME, "h1")
-
-        self.__dados_coletados['descricao'].append(descricao.text)
+        self.__dados_coletados['descricao'].append(descricao)
 
     def __coleta_preco(self) -> None:
-        espera = self.__options.espera(self.__driver)
-        elem = espera.until(
-            EC.presence_of_element_located((
-                By.XPATH,
-                "//div[contains(@class, 'detail-section') and contains(@class, 'detail-title')]"
-            ))
-        )
+        try:
+            espera = self.__options.espera(self.__driver)
+            elem = espera.until(
+                EC.presence_of_element_located((
+                    By.XPATH,
+                    "//div[contains(@class, 'detail-section') and contains(@class, 'detail-title')]"
+                ))
+            )
+            preco = elem.find_element(By.XPATH, "//div[contains(@class, 'detail-title-price-value')]").text
+        except Exception:
+            preco = None
 
-        preco = elem.find_element(By.XPATH, "//div[contains(@class, 'detail-title-price-value')]")
-
-        self.__dados_coletados['preco'].append(preco.text)
+        self.__dados_coletados['preco'].append(preco)
 
     def __coleta_dados_imovel(self) -> None:
-
-        espera = self.__options.espera(self.__driver)
-        main_elem = espera.until(
-            EC.presence_of_element_located((
-                By.XPATH,
-                "//div[contains(@class, 'detail-main-features-list')]"
-            ))
-        )
-
-        elementos = main_elem.find_elements(
-            By.XPATH, ".//div[contains(@class, 'detail-main-features-item')]"
-        )
-
-        dict = {}
-        for elem in elementos:
-            titulo_elem = elem.find_elements(
-                By.XPATH, ".//div[contains(@class, 'detail-main-features-item-title')]"
+        try:
+            espera = self.__options.espera(self.__driver)
+            main_elem = espera.until(
+                EC.presence_of_element_located((
+                    By.XPATH,
+                    "//div[contains(@class, 'detail-main-features-list')]"
+                ))
             )
-            valor_elem = elem.find_elements(
-                By.XPATH, ".//div[contains(@class, 'detail-main-features-item-value')]"
-            )
+            elementos = main_elem.find_elements(By.XPATH, ".//div[contains(@class, 'detail-main-features-item')]")
 
-            item = titulo_elem[0].text.strip() if titulo_elem else None
-            valor = valor_elem[0].text.strip() if valor_elem else None
+            dados = {}
+            for elem in elementos:
+                titulo_elem = elem.find_elements(By.XPATH, ".//div[contains(@class, 'detail-main-features-item-title')]")
+                valor_elem = elem.find_elements(By.XPATH, ".//div[contains(@class, 'detail-main-features-item-value')]")
+                item = titulo_elem[0].text.strip() if titulo_elem else None
+                valor = valor_elem[0].text.strip() if valor_elem else None
+                if item and valor:
+                    dados[item] = valor
+        except Exception:
+            dados = None
 
-            if item and valor:
-                dict[item] = valor
-
-        self.__dados_coletados['dados_imovel'].append(dict)
+        self.__dados_coletados['dados_imovel'].append(dados)
 
     def __percorre_e_coleta_caracteristicas(self) -> None:
+        try:
+            espera = self.__options.espera(self.__driver)
+            menu = espera.until(EC.presence_of_element_located((By.XPATH, ".//div[contains(@class, 'detail-features-menu-content')]")))
+            abas = menu.find_elements(By.TAG_NAME, "span")
 
-        espera = self.__options.espera(self.__driver)
-        menu = espera.until(EC.presence_of_element_located((By.XPATH, ".//div[contains(@class, 'detail-features-menu-content')]")))
-        abas = menu.find_elements(By.TAG_NAME, "span")
+            dados_coletados = {}
+            for aba in abas:
+                aba_name = self.__trata_nome_aba(aba.text)
+                self.__driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", aba)
+                sleep(0.5)
+                self.__driver.execute_script("arguments[0].click();", aba)
+                coletados = self.__coleta_caracteristicas()
+                dados_coletados[aba_name] = coletados
+        except Exception:
+            dados_coletados = None
 
-        dados_coletados = {}
-
-        for aba in abas:
-            aba_name = self.__trata_nome_aba(aba.text)
-            #print(aba_name)
-            self.__driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", aba)
-            sleep(0.5)
-            self.__driver.execute_script("arguments[0].click();", aba)
-            coletados = self.__coleta_caracteristicas()
-
-            dados_coletados[aba_name] = coletados
-        
         self.__dados_coletados['caracteristicas'].append(dados_coletados)
 
     def __trata_nome_aba(self, nome: str) -> str:
@@ -354,15 +350,19 @@ class ScrapperInfo:
         self.__dados_coletados['link'].append(link)
 
     def percorre_links(self) -> None: # após testes, encapsular método
-        for i, link in enumerate(self.__links['link'].head(10)):
-            self.__driver.get(link)
-            self.__coleta_link(link)
-            self.__coleta_descricao()
-            self.__coleta_preco()
-            self.__coleta_dados_imovel()
-            self.__coleta_coords()
-            self.__percorre_e_coleta_caracteristicas()
-            logger.info(f'Coleta do link "{i+1}" realizada com sucesso.')
+        for i, link in enumerate(self.__links['link']):
+            try:
+                self.__driver.get(link)
+                self.__coleta_descricao()
+                self.__coleta_preco()
+                self.__coleta_dados_imovel()
+                self.__coleta_coords()
+                self.__percorre_e_coleta_caracteristicas()
+                self.__coleta_link(link)
+                logger.info(f'Coleta do link "{i+1}" realizada com sucesso.')
+            except Exception as e:
+                logger.error(f'Erro ao processar o link {i+1} - {e}', exc_info=True)
+
 
     def get_dados(self) -> list[str]:
         """
