@@ -148,6 +148,7 @@ class ScraperLinks:
                 href = link_element.get_attribute("href")
                 self.__dados_coletados['link'].append(href)
 
+
     def __valida_ultima_pagina(self) -> bool:
         """
         Verifica se a última página de resultados foi alcançada.
@@ -186,7 +187,7 @@ class ScraperLinks:
         proxima_pagina = f"{self.base_url}?pn={self.__pagina}"
         self.__acessar_url(proxima_pagina)
 
-    def scraping_links(self) -> None:
+    def scraping(self) -> None:
         """
         Executa o processo completo de scraping, passando por todas as páginas disponíveis até a última.
 
@@ -198,7 +199,7 @@ class ScraperLinks:
         while True:
             self.__coletar_links()
 
-            logger.info(f"Coleta da página {self.__pagina} realizada com sucesso..")
+            logger.info(f"Extraindo Links: Coleta da página {self.__pagina} realizada com sucesso.")
             sleep(2)
 
             if self.__valida_ultima_pagina():
@@ -206,7 +207,7 @@ class ScraperLinks:
             else:
                 self.__proxima_pagina()
 
-    def get_links(self) -> list[str]:
+    def links_coletados(self) -> dict:
         """
         Retorna a lista de links coletados.
 
@@ -215,24 +216,37 @@ class ScraperLinks:
         list[str]
         """
 
-        return self.__dados_coletados["link"]
+        return self.__dados_coletados
 
 
 class ManipuladorArquivos:
 
-    def get_links_from_csv(self, diretorio: str, arquivo: str) -> pd.DataFrame:
+    def carregar_dados(self, diretorio: str, nome_arquivo: str) -> pd.DataFrame:
         
-        links = pd.read_csv(f'{diretorio}/{arquivo}')
+        links = pd.read_csv(f'{diretorio}/{nome_arquivo}', sep=';')
 
         return links
 
 class ScrapperInfo:
 
-    def __init__(self, driver: DriverManager) -> None:
+    def __init__(self, driver: DriverManager, fonte_dados) -> None:
         self.__driver = driver.get_driver()
         self.__options = driver.get_options()
-        self.__links = ManipuladorArquivos().get_links_from_csv(diretorio='data', arquivo='links-aptos.csv') # Ajustar isso. Preciso chamar o método "percorre_links()" com o nome do arquivo como argumento.
-        self.__dados_coletados = {"descricao": [], "dados_imovel": [], "caracteristicas": [], "coordenadas": [], "link": [], "preco": []}
+
+        if isinstance(fonte_dados, pd.DataFrame):
+            self.links = list(fonte_dados["link"])
+        else:
+            self.links = list(fonte_dados)
+
+        self.__dados_coletados = {
+            "descricao": [],
+            "dados_imovel": [],
+            "caracteristicas": [],
+            "coordenadas": [],
+            "link": [],
+            "preco": [],
+            "anunciante": [],
+        }
 
     def __coleta_descricao(self) -> None:
         try:
@@ -312,7 +326,6 @@ class ScrapperInfo:
         return nome_tratado
 
     def __coleta_caracteristicas(self) -> None:
-
         espera = self.__options.espera(self.__driver)
 
         main_elem = espera.until(
@@ -333,24 +346,54 @@ class ScrapperInfo:
         return items_coletados
 
     def __coleta_coords(self) -> None:
-        espera = self.__options.espera(self.__driver)
-        map = espera.until(
-        EC.presence_of_element_located((
-            By.XPATH,
-            "//div[contains(@id, 'objMap')]"
-            ))
-        )
+        try:
+            espera = self.__options.espera(self.__driver)
+            map = espera.until(
+            EC.presence_of_element_located((
+                By.XPATH,
+                "//div[contains(@id, 'objMap')]"
+                ))
+            )
 
-        lat = map.get_attribute('data-latitude')
-        long = map.get_attribute('data-longitude')
+            lat = map.get_attribute('data-latitude')
+            long = map.get_attribute('data-longitude')
 
-        self.__dados_coletados['coordenadas'].append({'lat': lat, 'long': long})
+            coords = {'lat': lat, 'long': long}
+        except Exception:
+            coords = None
+
+        self.__dados_coletados['coordenadas'].append(coords)
 
     def __coleta_link(self, link: str) -> None:
         self.__dados_coletados['link'].append(link)
 
-    def percorre_links(self) -> None: # após testes, encapsular método
-        for i, link in enumerate(self.__links['link']):
+    def __coleta_anunciante(self) -> None:
+        try:
+            espera = self.__options.espera(self.__driver)
+            elem = espera.until(
+            EC.presence_of_element_located((
+                By.XPATH,
+                "//div[contains(@class, 'detail-owner-name')]"
+                ))
+            )
+
+            anunciante = elem.text.strip()
+        except Exception:  
+            anunciante = None
+
+        self.__dados_coletados['anunciante'].append(anunciante)
+
+    def __reseta_driver(self) -> None:
+        logger.info("Recriando driver para evitar crash de aba.")
+        self.__driver.quit()
+        self.__driver = webdriver.Chrome(options=self.__options.chrome_options)
+
+
+    def scraping(self, index_inicial=None, index_final=None) -> None:
+        for i, link in enumerate(self.links[index_inicial:index_final]):
+            if i > 0 and i % 500 == 0:               
+                self.__reseta_driver()
+
             try:
                 self.__driver.get(link)
                 self.__coleta_descricao()
@@ -359,12 +402,13 @@ class ScrapperInfo:
                 self.__coleta_coords()
                 self.__percorre_e_coleta_caracteristicas()
                 self.__coleta_link(link)
-                logger.info(f'Coleta do link "{i+1}" realizada com sucesso.')
+                self.__coleta_anunciante()
+                logger.info(f'Coleta de dados: Coleta do link "{i+1}" realizada com sucesso.')
             except Exception as e:
                 logger.error(f'Erro ao processar o link {i+1} - {e}', exc_info=True)
 
 
-    def get_dados(self) -> list[str]:
+    def dados_coletados(self) -> list[str]:
         """
         Retorna os dados coletados durante o processo de Scrapping
 

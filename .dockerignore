@@ -1,0 +1,30 @@
+# Git
+.git
+.gitignore
+
+# Ambientes virtuais
+.venv/
+venv/
+env/
+
+# Cache / compilados Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pytest_cache/
+.mypy_cache/
+.pytest_cache/
+
+# IDE / editor
+.vscode/
+.idea/
+*.code-workspace
+
+# Sistema operacional
+.DS_Store
+Thumb
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
