@@ -62,34 +62,6 @@ class Armazenamento(FormatoArmazenamento):
         Verifica se o diretório existe. Se não existir, cria.
         """
         os.makedirs(self.diretorio, exist_ok=True)
-
-   ############################### SE FUNCIONAR, APAGAR CÓDIGO COMENTADO ABAIXO 
-
-    # def gerar_csv_links(self, dados: list[str]) -> None:
-    #     """
-    #     Armazena os dados coletados durante o processo de scraping em um arquivo CSV.
-
-    #     Parâmetros:
-    #     -----------
-    #     dados : list[str]
-    #         Lista de links coletados a serem armazenados.
-    #     """
-    #     df = pd.DataFrame(dados, columns=['links'])
-    #     df = df.drop_duplicates(subset=["links"])
-
-    #     self.checa_diretorio()
-    #     self.armazenar_csv(df=df, diretorio=self.diretorio, nome_arquivo="links-aptos.csv")
-
-
-
-    # def gerar_csv_dados(self, dados: list[any]) -> None:
-        
-    #     df = pd.DataFrame(dados) #columns=['descricao', 'dados_imovel', 'caracteristicas', 'coordenadas', 'link', 'preco'] #Ajustar isso aqui para coletar as colunas automaticamente. Sempre que adiciona uma variável, precisa incluir manualmente
-    #     df = df.drop_duplicates(subset=["link"])
-        
-    #     self.checa_diretorio()
-    #     self.armazenar_csv(df=df, diretorio=self.diretorio, nome_arquivo="dados-aptos.csv")
-
     
     def gerar_csv(self, dados, nome_arquivo: str, deduplicar_por: str):
 

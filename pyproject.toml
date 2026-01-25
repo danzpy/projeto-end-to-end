@@ -3,7 +3,7 @@ name = "projeto-end-to-end"
 version = "0.1.0"
 description = ""
 authors = ["Dan <daniel.leonssio@hotmail.com>"]
-readme = "README.md"
+readme = "readme.md"
 
 [tool.poetry.dependencies]
 python = "^3.12"

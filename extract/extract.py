@@ -22,6 +22,8 @@ class CustomOptions:
         self.chrome_options = Options()
         self.chrome_options.add_argument("--disable-gpu")
         self.chrome_options.add_argument("--disable-3d-apis")
+        self.chrome_options.add_argument("--disable-dev-shm-usage")
+        self.chrome_options.add_argument("--no-sandbox")
         self.chrome_options.add_argument("--allow-insecure-localhost")
         self.chrome_options.add_argument("--log-level=3")
         self.chrome_options.add_argument(
